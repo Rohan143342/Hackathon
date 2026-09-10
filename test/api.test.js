@@ -66,3 +66,14 @@ test("create rejects missing and blank required fields", async () => {
     assert.equal(response.status, 400);
   }
 });
+
+test("new insufficiencies start with zero reminders", async () => {
+  const { response, body } = await request("/api/insufficiencies", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ candidateName: "New Candidate", reason: "Missing document" })
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(body.reminderCount, 0);
+});
