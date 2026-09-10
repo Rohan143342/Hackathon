@@ -1,5 +1,7 @@
 const { after, before, test } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 const port = 3100 + Math.floor(Math.random() * 500);
@@ -45,4 +47,10 @@ test("status filter accepts documented uppercase values", async () => {
   assert.equal(response.status, 200);
   assert.ok(body.length > 0);
   assert.ok(body.every((item) => item.status === "OPEN"));
+});
+
+test("UI sends the selected status filter to the API", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(source, /status-filter[\s\S]{0,200}encodeURIComponent/);
 });
