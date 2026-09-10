@@ -105,3 +105,11 @@ test("invalid reminder ids return a handled client error", async () => {
     assert.ok(response.status === 400 || response.status === 404);
   }
 });
+
+test("UI does not interpolate user content into HTML", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.doesNotMatch(source, /<td>\$\{item\.candidateName\}<\/td>/);
+  assert.doesNotMatch(source, /<td>\$\{item\.reason\}<\/td>/);
+  assert.match(source, /textContent/);
+});
