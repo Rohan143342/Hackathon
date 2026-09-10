@@ -58,24 +58,28 @@ const REMINDER_CAP = 3;
 app.get("/api/insufficiencies", (req, res) => {
   const { status } = req.query;
   if (!status) return res.json(req.store.insufficiencies);
-  const result = req.store.insufficiencies.filter((i) => i.status.toLowerCase() === status);
+  const result = req.store.insufficiencies.filter((i) => i.status.toUpperCase() === String(status).toUpperCase());
   res.json(result);
 });
 
 app.post("/api/insufficiencies", (req, res) => {
-  const { candidateName, reason } = req.body;
-  // BUG (Hard, state/sequence): nextId is burned here for an audit-log id
-  // that was never wired up, then burned AGAIN below for the real id —
-  // every create burns an extra id, so ids skip a number every other call
-  // (e.g. 4, 6, 8, ... instead of 4, 5, 6, ...).
-  const auditId = req.store.nextId++;
+  const { candidateName, reason } = req.body || {};
+  if (
+    typeof candidateName !== "string" ||
+    typeof reason !== "string" ||
+    !candidateName.trim() ||
+    !reason.trim()
+  ) {
+    return res.status(400).json({ error: "candidateName and reason are required" });
+  }
+
   const item = {
     id: req.store.nextId++,
-    candidateName,
-    reason,
+    candidateName: candidateName.trim(),
+    reason: reason.trim(),
     status: "OPEN",
     createdAt: new Date().toISOString(),
-    reminderCount: 1
+    reminderCount: 0
   };
   req.store.insufficiencies.push(item);
   res.status(201).json(item);
@@ -83,19 +87,25 @@ app.post("/api/insufficiencies", (req, res) => {
 
 app.post("/api/insufficiencies/:id/remind", (req, res) => {
   const item = req.store.insufficiencies.find((i) => i.id === Number(req.params.id));
+  if (!item) {
+    return res.status(404).json({ error: "Insufficiency not found" });
+  }
 
-  if (item.reminderCount > REMINDER_CAP) {
+  if (item.status !== "OPEN") {
+    return res.status(400).json({ error: "Cannot remind a resolved insufficiency" });
+  }
+
+  if (item.reminderCount >= REMINDER_CAP) {
     return res.status(400).json({ error: "Cannot send more reminders" });
   }
 
   item.reminderCount += 1;
-  const responseCount = item.reminderCount - 1;
 
   res.json({
     id: item.id,
     candidateName: item.candidateName,
     status: item.status,
-    reminderCount: responseCount
+    reminderCount: item.reminderCount
   });
 });
 

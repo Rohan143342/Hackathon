@@ -1,6 +1,8 @@
 async function loadList() {
-  // BUG (UI): status filter dropdown value is never sent to the API — always fetches everything
-  const res = await fetch("/api/insufficiencies");
+  const status = document.getElementById("status-filter").value;
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const res = await fetch(`/api/insufficiencies${query}`);
+  if (!res.ok) throw new Error("Failed to load insufficiencies");
   const items = await res.json();
   renderList(items);
 }
@@ -13,23 +15,37 @@ function renderList(items) {
     const tr = document.createElement("tr");
 
     const isResolved = item.status === "RESOLVED";
-    // BUG (UI): badge class mapping is inverted (OPEN gets the "resolved" green class, RESOLVED gets the "open" rust class)
-    const badgeClass = isResolved ? "badge-open" : "badge-resolved";
+    const badgeClass = isResolved ? "badge-resolved" : "badge-open";
 
     const atCap = item.reminderCount >= 3;
 
-    tr.innerHTML = `
-      <td>${item.candidateName}</td>
-      <td>${item.reason}</td>
-      <td><span class="badge ${badgeClass}">${item.status}</span></td>
-      <td>${item.reminderCount + 1}</td>
-      <td class="row-actions">
-        <button data-action="remind" data-id="${item.id}">Send Reminder</button>
-        <button data-action="resolve" data-id="${item.id}">Resolve</button>
-      </td>
-    `;
+    const candidateCell = document.createElement("td");
+    candidateCell.textContent = item.candidateName;
+    tr.appendChild(candidateCell);
 
-    // BUG (UI): "Send Reminder" button is never disabled, even once reminderCount hits the cap (3)
+    const reasonCell = document.createElement("td");
+    reasonCell.textContent = item.reason;
+    tr.appendChild(reasonCell);
+
+    const statusCell = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = `badge ${badgeClass}`;
+    badge.textContent = item.status;
+    statusCell.appendChild(badge);
+    tr.appendChild(statusCell);
+
+    const countCell = document.createElement("td");
+    countCell.textContent = item.reminderCount;
+    tr.appendChild(countCell);
+
+    const actionsCell = document.createElement("td");
+    actionsCell.className = "row-actions";
+    actionsCell.innerHTML = `
+      <button data-action="remind" data-id="${item.id}"${atCap || isResolved ? " disabled" : ""}>Send Reminder</button>
+      <button data-action="resolve" data-id="${item.id}"${isResolved ? " disabled" : ""}>Resolve</button>
+    `;
+    tr.appendChild(actionsCell);
+
     body.appendChild(tr);
   });
 
@@ -42,14 +58,15 @@ function renderList(items) {
 }
 
 async function sendReminder(id) {
-  await fetch(`/api/insufficiencies/${id}/remind`, { method: "POST" });
-  loadList();
+  const res = await fetch(`/api/insufficiencies/${id}/remind`, { method: "POST" });
+  if (!res.ok) return;
+  await loadList();
 }
 
 async function resolveItem(id) {
-  // BUG (UI): fires the request but never reloads the list, so the badge/status
-  // in the table stays stale until the page is manually refreshed
-  await fetch(`/api/insufficiencies/${id}/resolve`, { method: "PATCH" });
+  const res = await fetch(`/api/insufficiencies/${id}/resolve`, { method: "PATCH" });
+  if (!res.ok) return;
+  await loadList();
 }
 
 document.getElementById("add-form").addEventListener("submit", async (e) => {
@@ -69,7 +86,7 @@ document.getElementById("add-form").addEventListener("submit", async (e) => {
     messageEl.className = "message success";
     document.getElementById("candidate-name").value = "";
     document.getElementById("reason").value = "";
-    // BUG (UI): new item never appears without a manual page reload — list isn't refreshed here
+    await loadList();
   } else {
     messageEl.textContent = "Failed to add insufficiency.";
     messageEl.className = "message error";
