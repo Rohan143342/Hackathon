@@ -83,3 +83,10 @@ test("UI maps OPEN and RESOLVED statuses to the correct badge classes", () => {
 
   assert.match(source, /const badgeClass = isResolved \? "badge-resolved" : "badge-open"/);
 });
+
+test("UI disables reminders at the cap and for resolved records", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(source, /atCap\s*\|\|\s*isResolved/);
+  assert.match(source, /data-action="remind"[^>]*disabled/);
+});
