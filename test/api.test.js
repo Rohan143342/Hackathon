@@ -97,3 +97,11 @@ test("resolved insufficiencies cannot receive reminders", async () => {
 
   assert.equal(response.status, 400);
 });
+
+test("invalid reminder ids return a handled client error", async () => {
+  for (const id of ["999", "-1", "not-a-number"]) {
+    const { response } = await request(`/api/insufficiencies/${id}/remind`, { method: "POST" });
+
+    assert.ok(response.status === 400 || response.status === 404);
+  }
+});
