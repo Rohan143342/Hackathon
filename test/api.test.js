@@ -90,3 +90,10 @@ test("UI disables reminders at the cap and for resolved records", () => {
   assert.match(source, /atCap\s*\|\|\s*isResolved/);
   assert.match(source, /data-action="remind"[^>]*disabled/);
 });
+
+test("resolved insufficiencies cannot receive reminders", async () => {
+  await request("/api/reset", { method: "POST" });
+  const { response } = await request("/api/insufficiencies/3/remind", { method: "POST" });
+
+  assert.equal(response.status, 400);
+});
